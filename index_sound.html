@@ -1,0 +1,975 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>토끼와 거북이 : 기말고사 서바이벌</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* 진지하고 무거운 명조체 적용 */
+        @import url('https://fonts.googleapis.com/css2?family=Nanum+Myeongjo:wght@400;700;800&family=Noto+Serif+KR:wght@400;700;900&display=swap');
+
+        :root {
+            --bg-color: #020000;
+            --text-main: #e5e7eb;
+            --accent-red: #9a0000;
+            --blood-red: #5a0000;
+        }
+
+        body {
+            font-family: 'Nanum Myeongjo', 'Noto Serif KR', serif;
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            overflow: hidden; 
+            user-select: none;
+            transition: filter 0.5s ease;
+        }
+
+        /* --- 1. 전역 공포 효과 --- */
+        .crt::before {
+            content: " "; display: block; position: absolute;
+            top: 0; left: 0; bottom: 0; right: 0;
+            background: linear-gradient(rgba(10, 0, 0, 0) 50%, rgba(0, 0, 0, 0.2) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.04), rgba(0, 255, 0, 0.01), rgba(0, 0, 255, 0.03));
+            z-index: 100; background-size: 100% 3px, 4px 100%; pointer-events: none;
+        }
+
+        .global-vignette {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            box-shadow: inset 0 0 250px rgba(0, 0, 0, 0.95);
+            z-index: 85; pointer-events: none;
+        }
+
+        #damage-flash {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background-color: rgba(200, 0, 0, 0.5);
+            z-index: 95; opacity: 0; pointer-events: none;
+            transition: opacity 0.1s ease-out;
+        }
+
+        .danger-vignette {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            box-shadow: inset 0 0 250px rgba(185, 0, 0, 0.85);
+            z-index: 90; pointer-events: none;
+            animation: pulse-red 1s infinite;
+        }
+
+        @keyframes pulse-red {
+            0%, 100% { box-shadow: inset 0 0 150px rgba(185, 0, 0, 0.4); }
+            50% { box-shadow: inset 0 0 350px rgba(185, 0, 0, 0.95); }
+        }
+
+        .shake { animation: shake 0.4s cubic-bezier(.36,.07,.19,.97) both; }
+        @keyframes shake {
+            10%, 90% { transform: translate3d(-5px, 0, 0) rotate(-1deg); }
+            20%, 80% { transform: translate3d(6px, 0, 0) rotate(1deg); }
+            30%, 50%, 70% { transform: translate3d(-12px, 0, 0) rotate(-2deg); }
+            40%, 60% { transform: translate3d(12px, 0, 0) rotate(2deg); }
+        }
+
+        /* --- 2. 글리치 및 타이틀 애니메이션 --- */
+        .glitch-heavy {
+            position: relative;
+            animation: glitch-anim 3s infinite linear alternate-reverse;
+        }
+        @keyframes glitch-anim {
+            0% { transform: skew(0deg); text-shadow: 2px 0 rgba(255,0,0,0.8), -2px 0 rgba(0,0,255,0.8); }
+            2% { transform: skew(-3deg); text-shadow: -2px 0 rgba(255,0,0,0.8), 2px 0 rgba(0,0,255,0.8); }
+            4% { transform: skew(3deg); text-shadow: 2px 0 rgba(255,0,0,0.8), -2px 0 rgba(0,0,255,0.8); }
+            6% { transform: skew(0deg); text-shadow: 2px 0 rgba(255,0,0,0.8), -2px 0 rgba(0,0,255,0.8); }
+            100% { transform: skew(0deg); text-shadow: 2px 0 rgba(255,0,0,0.8), -2px 0 rgba(0,0,255,0.8); }
+        }
+
+        /* --- 3. 스크린 전환 및 레이아웃 --- */
+        .screen {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            display: none; flex-direction: column; opacity: 0;
+            transition: opacity 0.8s ease-in-out;
+            background-color: transparent; 
+        }
+        .screen.active { display: flex; opacity: 1; z-index: 10; }
+
+        /* 시선 이동(POV) */
+        #pov-transition {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            z-index: 999; opacity: 0; pointer-events: none;
+            transition: opacity 0.8s ease-in-out, background-color 0.8s ease-in-out; 
+            display: flex; flex-direction: column; justify-content: center; align-items: center;
+            background-color: transparent;
+        }
+        .pov-overlay {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0, 0, 0, 0.75); z-index: -1;
+        }
+        #pov-text { font-size: clamp(1.5rem, 3vw, 2.5rem); font-weight: 900; letter-spacing: 0.2em; color: #b00; text-shadow: 0 0 15px rgba(255,0,0,0.8); text-align: center; line-height: 1.8; z-index: 2; }
+        .walking-text { animation: walkText 2s infinite; z-index: 2;}
+        @keyframes walkText {
+            0%, 100% { transform: translateY(0); opacity: 0.1; }
+            50% { transform: translateY(-10px); opacity: 1; }
+        }
+
+        #game-title-ingame {
+            position: absolute; top: 1.5rem; left: 2.5rem;
+            font-size: clamp(1.2rem, 2vw, 1.8rem); font-weight: 900; color: #ff2222; letter-spacing: 0.2em;
+            text-shadow: 3px 3px 0px #000, -2px -2px 20px rgba(255,0,0,0.9);
+            z-index: 45; pointer-events: none;
+        }
+
+        /* --- 4. 독자적 레이아웃 (Bloody-box) --- */
+        .bloody-box {
+            background: rgba(15, 0, 0, 0.65);
+            border: 2px solid #400;
+            position: relative;
+            box-shadow: 0 0 30px rgba(0,0,0,0.8), inset 0 0 30px rgba(60,0,0,0.5);
+            backdrop-filter: blur(4px);
+        }
+        .bloody-box::before, .bloody-box::after {
+            content: ''; position: absolute; pointer-events: none;
+        }
+        .bloody-box::before {
+            top: -6px; left: -6px; width: clamp(20px, 3vw, 50px); height: clamp(20px, 3vw, 50px);
+            border-top: 5px solid #900; border-left: 5px solid #900;
+            filter: drop-shadow(0 0 8px red);
+        }
+        .bloody-box::after {
+            bottom: -6px; right: -6px; width: clamp(20px, 3vw, 50px); height: clamp(20px, 3vw, 50px);
+            border-bottom: 5px solid #900; border-right: 5px solid #900;
+            filter: drop-shadow(0 0 8px red);
+        }
+
+        /* 대화창 및 선택지 */
+        #dialogue-fixed-box {
+            width: 68%; height: 100%; 
+            padding: clamp(0.8rem, 2vw, 2.5rem); display: flex; flex-direction: column;
+            overflow: hidden;
+        }
+        #dialogue-text-container {
+            flex-grow: 1; overflow-y: auto; padding-right: 10px; margin-top: 10px;
+        }
+        #dialogue-text-container::-webkit-scrollbar { width: 6px; }
+        #dialogue-text-container::-webkit-scrollbar-track { background: rgba(0,0,0,0.5); }
+        #dialogue-text-container::-webkit-scrollbar-thumb { background: #700; border-radius: 4px; border: 1px solid #300; }
+
+        #speaker-name { font-size: clamp(1rem, 1.8vw, 1.7rem); font-weight: 900; color: #ff4444; letter-spacing: 0.1em; border-bottom: 2px dashed #600; padding-bottom: 6px; margin-bottom: 10px; display: inline-block; text-shadow: 2px 2px 4px #000, 0 0 10px rgba(255,0,0,0.8); }
+        
+        #dialogue-text { font-size: clamp(0.8rem, 1.5vw, 1.35rem); line-height: 1.8; color: #f3f4f6; text-shadow: 2px 2px 4px #000, -1px -1px 4px #000, 0 0 8px rgba(0,0,0,0.9); font-weight: 700; }
+
+        #choices-right-panel {
+            width: 30%; height: 100%; display: flex; flex-direction: column; justify-content: center; gap: clamp(0.4rem, 1vw, 1rem); overflow-y: auto;
+        }
+        .choice-btn {
+            background: rgba(15,0,0,0.85); border: 2px solid #600; color: #e5e7eb;
+            padding: clamp(0.5rem, 1.2vw, 1.4rem); text-align: left; font-size: clamp(0.7rem, 1.2vw, 1.25rem); font-weight: 800;
+            transition: all 0.3s; box-shadow: 4px 4px 0 #000; cursor: pointer;
+            position: relative; overflow: hidden; text-shadow: 2px 2px 4px #000;
+            opacity: 0; transform: translateX(30px); animation: slideInBtn 0.5s forwards;
+            line-height: 1.4;
+        }
+        @keyframes slideInBtn { to { opacity: 1; transform: translateX(0); } }
+        .choice-btn:hover {
+            background: #500; color: #fff; transform: translateX(-8px) scale(1.02);
+            box-shadow: 10px 10px 0 #000, 0 0 20px rgba(255,0,0,0.5); border-color: #f00; text-shadow: 0 0 8px #fff;
+        }
+
+        /* 스탯 바 */
+        .stat-wrapper { display: flex; flex-direction: column; align-items: center; width: 23%; min-width: 0; }
+        .stat-label { font-size: clamp(0.5rem, 1.1vw, 1rem); color: #aaa; margin-bottom: 4px; font-weight: 900; letter-spacing: 0.05em; text-shadow: 1px 1px 2px #000; text-align: center; white-space: nowrap; }
+        .stat-bar-bg {
+            width: 100%; height: clamp(15px, 2.5vh, 38px); background: #0a0a0a; border: 1px solid #444;
+            border-radius: 4px; position: relative; overflow: hidden; box-shadow: inset 0 0 15px #000;
+        }
+        .stat-fill {
+            position: absolute; bottom: 0; left: 0; height: 100%; transition: width 0.5s ease-out;
+            background-size: 200% 100%; animation: waveFlow 2s linear infinite;
+        }
+        @keyframes waveFlow { 0% { background-position: 100% 0; } 100% { background-position: -100% 0; } }
+        
+        .fill-hp { background-image: linear-gradient(90deg, #991b1b, #ef4444, #991b1b); }
+        .fill-gpa { background-image: linear-gradient(90deg, #1e3a8a, #3b82f6, #1e3a8a); }
+        .fill-corr { background-image: linear-gradient(90deg, #581c87, #a855f7, #581c87); }
+        .fill-focus { background-image: linear-gradient(90deg, #854d0e, #eab308, #854d0e); }
+        
+        .stat-value-text {
+            position: absolute; width: 100%; height: 100%; display: flex; justify-content: center; align-items: center;
+            font-size: clamp(0.6rem, 1.3vw, 1.2rem); font-weight: 900; color: #fff; text-shadow: 2px 2px 4px #000, 0 0 5px rgba(0,0,0,1); z-index: 2;
+        }
+
+        /* 모달 및 유틸버튼 */
+        .modal-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.9); z-index: 150; display: none; justify-content: center; align-items: center;
+        }
+        .modal-content {
+            background: #0a0000; border: 2px solid #500; padding: 2rem; width: 90%; max-width: 450px;
+            box-shadow: 0 0 50px rgba(255,0,0,0.3); position: relative;
+        }
+        
+        #util-icons {
+            position: absolute; top: 1.5rem; right: 2.5rem; display: flex; gap: 1.5rem; z-index: 50;
+        }
+        .util-btn {
+            background: rgba(0,0,0,0.6); border: 1px solid #444; border-radius: 8px; color: #999; 
+            font-size: 1.8rem; padding: 10px 15px; cursor: pointer; transition: all 0.3s;
+        }
+        .util-btn:hover { color: #f00; border-color: #f00; text-shadow: 0 0 10px red; box-shadow: 0 0 15px rgba(255,0,0,0.5); transform: scale(1.1); }
+
+        /* 비디오 레이어를 감싸는 애니메이션 속성 */
+        .walking-anim { animation: walking 4.5s ease-in-out infinite; transform-origin: center bottom; }
+        @keyframes walking {
+            0%, 100% { transform: translateY(0) scale(1.05); }
+            25% { transform: translateY(-18px) translateX(-8px) scale(1.08); }
+            50% { transform: translateY(0) scale(1.05); }
+            75% { transform: translateY(-18px) translateX(8px) scale(1.08); }
+        }
+        #character-layer {
+            display: none;
+        }
+        
+        /* 닉네임 입력: 수험표 업로드 란 - 밝기 대폭 상향 */
+        .profile-upload-wrapper {
+            width: 180px; height: 240px; border: 3px dashed #700; border-radius: 8px;
+            margin: 0 auto 30px; position: relative; overflow: hidden; cursor: pointer;
+            display: flex; justify-content: center; align-items: center; background: rgba(50,10,10,0.4);
+            box-shadow: inset 0 0 10px rgba(0,0,0,0.5); transition: all 0.3s;
+        }
+        .profile-upload-wrapper:hover { border-color: #f00; background: rgba(80,15,15,0.6); box-shadow: inset 0 0 20px rgba(255,0,0,0.3); }
+        /* 업로드된 이미지 자체도 밝게 튀어나오도록 필터 추가 */
+        #preview-img { width: 100%; height: 100%; object-fit: cover; display: none; filter: brightness(1.15) contrast(1.05); }
+        #upload-text { color: #aaa; font-size: 1.3rem; font-weight: 900; text-align: center; text-shadow: 1px 1px 2px #000; line-height: 1.5; }
+        #upload-text span { color: #f44; font-size: 1.5rem; }
+
+        #name-input-box {
+            background: rgba(10,0,0,0.8); border: 2px solid #500; color: white; 
+            font-size: 2.2rem; font-weight: 900; text-align: center; padding: 20px; width: 100%;
+            outline: none; transition: all 0.3s; font-family: 'Nanum Myeongjo', serif;
+            box-shadow: inset 0 0 20px rgba(0,0,0,0.9);
+        }
+        #name-input-box:focus { border-color: #f00; background: rgba(40,0,0,0.9); box-shadow: 0 0 25px rgba(255,0,0,0.4); }
+    </style>
+</head>
+<body class="crt">
+
+    <!-- CSS/레이아웃을 1도 깨지 않는 절대적인 글로벌 비디오 배경 -->
+    <video id="global-video" class="fixed top-0 left-0 w-full h-full object-cover transition-opacity duration-1000 pointer-events-none" style="z-index: 1; filter: brightness(1.25) contrast(1.05);" autoplay loop muted playsinline></video>
+
+    <div class="global-vignette"></div>
+    <div id="damage-flash"></div>
+    <div id="vignette" class="hidden"></div>
+    
+    <!-- 화면 전환 POV -->
+    <div id="pov-transition">
+        <div class="pov-overlay"></div>
+        <span id="pov-text">...</span>
+        <span id="pov-walk-text" class="text-lg text-red-800 mt-10 walking-text hidden font-black tracking-[0.8em] text-shadow-md">뚜벅... 뚜벅...</span>
+    </div>
+
+    <!-- 1. 타이틀 스크린 (그라디언트 딤을 덜 어둡게 수정) -->
+    <div id="screen-title" class="screen active flex-row justify-center items-center" style="background-image: linear-gradient(rgba(10,0,0,0.1), rgba(0,0,0,0.5));">
+        
+        <!-- 좌측: 타이틀 및 시작 버튼 -->
+        <div class="flex flex-col items-center justify-center w-1/2 p-10 relative">
+            <p class="text-red-600 font-black text-2xl tracking-[0.3em] mb-6 text-center glitch-heavy" style="text-shadow: 2px 2px 5px #000, 0 0 10px rgba(255,0,0,0.5);">
+                25730080 김민정
+            </p>
+            <h1 class="text-7xl md:text-8xl font-black text-red-700 tracking-tighter mb-4 text-center glitch-heavy">토끼와 거북이</h1>
+            <h2 class="text-3xl md:text-4xl text-gray-400 mb-20 tracking-widest font-black" style="text-shadow: 2px 2px 4px #000;">기말고사 서바이벌</h2>
+            
+            <div class="flex flex-col gap-6 w-96">
+                <button onclick="goToNameInput()" class="border-2 border-red-900 bg-[#150000] text-red-500 py-5 font-black hover:bg-red-900 hover:text-white transition shadow-[0_0_30px_rgba(200,0,0,0.4)] text-2xl tracking-[0.2em]">새로운 수험표 발급</button>
+                <button id="btn-continue" onclick="continueGame()" class="hidden border-2 border-gray-700 bg-black/50 text-gray-300 py-5 font-black hover:border-white hover:text-white transition text-xl tracking-[0.1em]">수험장으로 복귀 (이어하기)</button>
+            </div>
+        </div>
+
+        <!-- 우측: 수험 기록 패널 -->
+        <div class="w-1/3 p-10 bloody-box flex flex-col justify-center min-h-[450px]">
+            <h3 class="text-4xl text-red-600 font-black mb-10 border-b-2 border-red-900 pb-5 text-center tracking-[0.3em] glitch-heavy">[ 수 험 기 록 ]</h3>
+            <div class="space-y-8 text-xl text-gray-300">
+                <div>
+                    <p class="text-sm text-gray-500 mb-2 font-sans font-bold">최근 도달 구역</p>
+                    <p id="record-savepoint" class="text-white font-black text-2xl tracking-wide text-shadow-md">기록 없음</p>
+                </div>
+                <div>
+                    <p class="text-sm text-gray-500 mb-2 font-sans font-bold">부여받은 칭호</p>
+                    <p id="record-title" class="text-purple-500 font-black text-2xl tracking-wide text-shadow-md">미등록 수험생</p>
+                </div>
+                <div>
+                    <p class="text-sm text-gray-500 mb-2 font-sans font-bold">생존 남은 시간</p>
+                    <p id="record-timeleft" class="text-red-500 font-black text-2xl tracking-wide text-shadow-md">12:00:00</p>
+                </div>
+                <div class="mt-12 pt-8 border-t-2 border-gray-800">
+                    <button onclick="showScreen('screen-tutorial')" class="w-full text-center text-gray-400 hover:text-red-400 font-bold transition underline text-lg tracking-widest">생존 수칙 다시보기</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 2. 튜토리얼 스크린 -->
+    <div id="screen-tutorial" class="screen items-center justify-center p-8" style="background-image: linear-gradient(rgba(10,0,0,0.2), rgba(0,0,0,0.6));">
+        <div class="bloody-box p-16 max-w-5xl text-center">
+            <h2 class="text-5xl text-red-600 font-black mb-12 tracking-[0.3em] glitch-heavy">[ 절대 생존 수칙 ]</h2>
+            <div class="text-left text-gray-300 space-y-10 mb-16 text-2xl leading-relaxed font-bold">
+                <p><span class="text-red-500 border-l-4 border-red-600 pl-4">체력 (HP):</span> 0이 되면 <span class="text-white font-black">즉시 응급실로 실려가며 사망</span>합니다. 40 이하는 위험 상태입니다.</p>
+                <p><span class="text-blue-400 border-l-4 border-blue-500 pl-4">예상 학점 (GPA):</span> 생존자의 성과. 80점 이상을 모아야만 <span class="text-white font-black">A+ 진엔딩</span>이 가능합니다.</p>
+                <p><span class="text-purple-400 border-l-4 border-purple-500 pl-4">타락 지수 (CORR):</span> 유혹에 굴복할 때 오릅니다. 100에 도달하는 순간 <span class="text-white font-black">무조건 F 처리</span>됩니다.</p>
+                <p><span class="text-yellow-500 border-l-4 border-yellow-500 pl-4">집중 지수 (FOCUS):</span> 고통을 감내한 자에게 주어지는 숨겨진 구원의 열쇠입니다.</p>
+            </div>
+            <button onclick="showScreen('screen-title')" class="px-16 py-5 border-2 border-red-900 bg-[#110000] text-red-400 hover:bg-red-900 hover:text-white transition text-2xl font-black tracking-[0.4em] shadow-[0_0_20px_rgba(255,0,0,0.2)]">명심하겠습니다</button>
+        </div>
+    </div>
+
+    <!-- 3. 인게임 닉네임 입력 스크린 -->
+    <div id="screen-name" class="screen items-center justify-center p-8" style="background-image: linear-gradient(rgba(10,0,0,0.1), rgba(0,0,0,0.5));">
+        <div class="bloody-box p-16 max-w-3xl w-full text-center">
+            <label class="profile-upload-wrapper" title="수험표 사진을 부착하십시오">
+                <input type="file" id="profile-upload" class="hidden" accept="image/*" onchange="previewProfile(event)">
+                <span id="upload-text"><span>+</span><br>수험표 사진<br>부착란</span>
+                <img id="preview-img" src="" alt="Profile">
+            </label>
+            <p class="text-gray-300 mb-12 text-3xl leading-loose font-black" style="text-shadow: 2px 2px 5px #000;">맨정신으론 버틸 수 없는 기말고사의 밤...<br>답안지에 핏물로 새길 수험자 성명을 적어라.</p>
+            <input type="text" id="name-input-box" class="bloody-box" placeholder="수험자 성명 입력" autocomplete="off" onkeypress="if(event.key==='Enter') submitName()">
+            <button onclick="submitName()" class="mt-14 text-red-500 border-2 border-red-900 bg-[#150000] px-16 py-5 hover:bg-red-900 hover:text-white transition tracking-[0.4em] font-black text-2xl shadow-[0_0_30px_rgba(255,0,0,0.4)]">운명의 시험장으로</button>
+        </div>
+    </div>
+
+    <!-- 4. 메인 게임 스크린 -->
+    <div id="screen-game" class="screen">
+        
+        <div id="game-title-ingame" class="glitch-heavy">토끼와 거북이 : 기말고사 서바이벌</div>
+
+        <div id="util-icons">
+            <button class="util-btn" onclick="openModal('note-modal')" title="수험생의 유서(메모장)">&#128466;</button>
+            <button class="util-btn" onclick="openModal('settings-modal')" title="환경설정">&#9881;</button>
+            <button class="util-btn" onclick="goHome()" title="메인으로 도주">&#127968;</button>
+        </div>
+
+        <div class="absolute bottom-0 left-0 w-full h-[45vh] min-h-[300px] max-h-[450px] p-2 sm:p-4 md:p-8 flex flex-col gap-2 sm:gap-4 z-30 justify-end">
+            <!-- 상단: 대화창 + 선택지 영역 -->
+            <div class="flex justify-between w-full max-w-[1400px] mx-auto gap-2 sm:gap-4 md:gap-10 h-[65%]">
+                <div id="dialogue-fixed-box" class="bloody-box">
+                    <div id="speaker-name">시스템</div>
+                    <div id="dialogue-text-container">
+                        <div id="dialogue-text">...</div>
+                    </div>
+                </div>
+                <div id="choices-right-panel">
+                </div>
+            </div>
+
+            <!-- 하단: 플레이어 정보 + 상태 바 -->
+            <div class="flex justify-between items-center w-full max-w-[1400px] mx-auto bg-black/85 border-t-2 border-gray-800 p-2 sm:p-4 md:px-8 rounded h-[30%] shadow-[0_-10px_30px_rgba(0,0,0,0.9)] overflow-hidden">
+                <div class="flex items-center gap-2 sm:gap-4 md:gap-6 w-[45%] shrink-0">
+                    <div class="flex items-center gap-2 sm:gap-3 md:gap-5 shrink-0">
+                        <!-- 미니 프로필 화면도 밝게 유지 -->
+                        <img id="hud-profile-img" src="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' fill='%23111'/><circle cx='50' cy='40' r='20' fill='%23444'/><path d='M20,100 Q50,60 80,100' fill='%23444'/></svg>" class="w-[clamp(30px,5vw,64px)] h-[clamp(30px,5vw,64px)] rounded border-2 border-red-900 object-cover shadow-[0_0_10px_rgba(255,0,0,0.3)] shrink-0 brightness-110">
+                        <div class="shrink-0">
+                            <div id="hud-title-display" class="text-[clamp(0.55rem,1.2vw,0.875rem)] text-red-600 font-black mb-0.5 md:mb-1 tracking-widest whitespace-nowrap">기말고사 수험생</div>
+                            <div id="hud-name" class="text-[clamp(0.9rem,1.8vw,1.875rem)] font-black text-white tracking-[0.2em] whitespace-nowrap" style="text-shadow: 2px 2px 5px #000, 0 0 10px rgba(255,0,0,0.5);">PLAYER</div>
+                        </div>
+                    </div>
+                    <div class="border-l-2 border-gray-800 pl-2 sm:pl-4 md:pl-6 ml-1 sm:ml-2 flex flex-col justify-center shrink-0">
+                        <div class="text-[clamp(0.55rem,1.2vw,0.875rem)] text-gray-500 font-bold mb-0.5 md:mb-1 tracking-widest whitespace-nowrap">진행 구역</div>
+                        <div id="hud-current-scene" class="text-[clamp(0.75rem,1.5vw,1.125rem)] font-black text-gray-300 tracking-wider text-shadow-md whitespace-nowrap">도입부</div>
+                    </div>
+                    <div class="border-l-2 border-gray-800 pl-2 sm:pl-4 md:pl-6 ml-1 sm:ml-2 flex flex-col justify-center shrink-0">
+                        <div class="text-[clamp(0.55rem,1.2vw,0.875rem)] text-red-500 font-bold mb-0.5 md:mb-1 tracking-widest glitch-heavy whitespace-nowrap">남은 시간</div>
+                        <div id="hud-time-left" class="text-[clamp(0.8rem,1.6vw,1.25rem)] font-black text-red-600 tracking-wider text-shadow-md whitespace-nowrap" style="text-shadow: 0 0 10px rgba(255,0,0,0.8);">--:--:--</div>
+                    </div>
+                </div>
+
+                <div class="flex justify-between gap-1 sm:gap-2 md:gap-4 w-[52%] shrink-0 items-center h-full">
+                    <div class="stat-wrapper">
+                        <div class="stat-label text-red-500">체력</div>
+                        <div class="stat-bar-bg border-red-900">
+                            <div id="bar-hp" class="stat-fill fill-hp" style="width: 100%;"></div>
+                            <div id="val-hp" class="stat-value-text">100</div>
+                        </div>
+                    </div>
+                    <div class="stat-wrapper">
+                        <div class="stat-label text-blue-400">예상 학점</div>
+                        <div class="stat-bar-bg border-blue-900">
+                            <div id="bar-gpa" class="stat-fill fill-gpa" style="width: 0%;"></div>
+                            <div id="val-gpa" class="stat-value-text">0</div>
+                        </div>
+                    </div>
+                    <div class="stat-wrapper">
+                        <div class="stat-label text-purple-400">타락 지수</div>
+                        <div class="stat-bar-bg border-purple-900">
+                            <div id="bar-corr" class="stat-fill fill-corr" style="width: 0%;"></div>
+                            <div id="val-corr" class="stat-value-text">0</div>
+                        </div>
+                    </div>
+                    <div class="stat-wrapper">
+                        <div class="stat-label text-yellow-500">집중 지수</div>
+                        <div class="stat-bar-bg border-yellow-700">
+                            <div id="bar-focus" class="stat-fill fill-focus" style="width: 0%;"></div>
+                            <div id="val-focus" class="stat-value-text">0</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 5. 엔딩 스크린 -->
+    <div id="screen-ending" class="screen items-center justify-center p-8" style="z-index: 60; background-color: transparent;">
+        <!-- 텍스트 결과 영역을 감싸는 불투명 오버레이 (초기 투명 상태) -->
+        <div id="ending-text-overlay" class="bloody-box p-20 max-w-5xl text-center w-full transition-opacity duration-[2000ms]" style="opacity: 0; background-color: rgba(10,0,0,0.85); box-shadow: 0 0 100px 50px rgba(10,0,0,0.85);">
+            <div id="end-result" class="text-8xl md:text-9xl font-black mb-6 tracking-tighter text-gray-400 glitch-heavy">결과</div>
+            <div id="end-category" class="text-3xl text-red-600 font-black mb-16 tracking-[0.4em]">ENDING</div>
+            <div id="end-desc" class="text-2xl text-gray-300 max-w-4xl mx-auto mb-20 leading-loose font-bold" style="text-shadow: 2px 2px 5px #000;">...</div>
+            <button onclick="location.reload()" class="border-2 border-red-900 bg-[#150000] text-red-400 py-5 px-20 hover:bg-red-900 hover:text-white transition tracking-[0.5em] font-black text-3xl shadow-[0_0_30px_rgba(255,0,0,0.4)]">윤회 (처음부터)</button>
+        </div>
+    </div>
+
+    <!-- 모달: 메모장 -->
+    <div id="note-modal" class="modal-overlay">
+        <div class="modal-content bloody-box">
+            <h3 class="text-3xl text-red-600 font-black mb-6 border-b-2 border-red-900 pb-3 tracking-widest">수험생의 유서</h3>
+            <textarea id="note-textarea" class="w-full h-72 bg-black/70 border-2 border-gray-800 text-gray-200 p-5 text-lg font-sans outline-none focus:border-red-600 resize-none shadow-[inset_0_0_15px_rgba(0,0,0,0.9)]" placeholder="여기에 마지막 기억을 기록하십시오..."></textarea>
+            <div class="flex justify-end mt-6">
+                <button onclick="closeModal('note-modal')" class="bg-[#300] text-red-400 font-bold px-8 py-3 border-2 border-red-900 hover:bg-red-900 hover:text-white text-lg transition">저장 후 닫기</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 모달: 환경설정 -->
+    <div id="settings-modal" class="modal-overlay">
+        <div class="modal-content bloody-box">
+            <h3 class="text-3xl text-gray-300 font-black mb-8 border-b-2 border-gray-700 pb-3 tracking-widest">시스템 환경설정</h3>
+            <div class="space-y-8">
+                <div>
+                    <label class="block text-gray-400 mb-3 font-bold text-lg">전체 사운드 음량</label>
+                    <input type="range" id="vol-slider" min="0" max="1" step="0.1" value="1" class="w-full accent-red-700" onchange="updateVolume(this.value)">
+                </div>
+                <div>
+                    <label class="block text-gray-400 mb-3 font-bold text-lg">시야 (명도) 조절</label>
+                    <input type="range" id="bright-slider" min="30" max="150" step="10" value="100" class="w-full accent-red-700" onchange="updateBrightness(this.value)">
+                </div>
+                <div class="pt-6 border-t-2 border-gray-800">
+                    <button onclick="closeModal('settings-modal'); showScreen('screen-tutorial');" class="w-full bg-[#111] text-gray-400 font-bold text-lg px-5 py-4 border-2 border-gray-700 hover:border-red-700 hover:text-red-400 transition tracking-widest">생존 수칙(튜토리얼) 확인</button>
+                </div>
+            </div>
+            <div class="flex justify-end mt-8">
+                <button onclick="closeModal('settings-modal')" class="bg-[#222] border-2 border-gray-600 font-bold text-gray-300 px-8 py-3 hover:bg-gray-700 hover:text-white text-lg transition">닫기</button>
+            </div>
+        </div>
+    </div>
+
+<script>
+    // --- 글로벌 TTS 오디오 컨트롤 시스템 ---
+    let currentAudio = null;
+    let audioQueue = [];
+    let globalVolume = 1.0;
+
+    // 연속된 오디오 파일들을 큐에 넣고 재생
+    function playTTS(fileArray) {
+        if (currentAudio) {
+            currentAudio.pause();
+            currentAudio.currentTime = 0;
+        }
+        audioQueue = Array.isArray(fileArray) ? [...fileArray] : [fileArray];
+        playNextInQueue();
+    }
+
+    function playNextInQueue() {
+        if (audioQueue.length === 0) return;
+        const nextFile = audioQueue.shift();
+        currentAudio = new Audio(nextFile);
+        currentAudio.volume = globalVolume;
+        currentAudio.onended = () => {
+            playNextInQueue();
+        };
+        currentAudio.play().catch(e => console.log("Audio play error: ", e));
+    }
+
+    function updateVolume(val) {
+        globalVolume = parseFloat(val);
+        if (currentAudio) {
+            currentAudio.volume = globalVolume;
+        }
+    }
+    
+    function updateBrightness(val) {
+        document.body.style.filter = `brightness(${val}%)`;
+    }
+
+    // 시스템 상태 및 로직 
+    let state = { 
+        name: "수험생", hp: 100, gpa: 0, corr: 0, focus: 0, 
+        sceneId: "intro", title: "미등록 수험생", savepointName: "기록 없음",
+        profileImg: "", timeLeft: "12:00:00"
+    };
+    let typeWriterInterval;
+
+    // 영상 경로 매핑 
+    const ASSETS = {
+        bg: {
+            cover: "../../video/cover.mp4",
+            s1: "../../video/S1.mp4",
+            s2: "../../video/S2.mp4",
+            s3: "../../video/S3.mp4",
+            s4: "../../video/S4.mp4",
+            s5: "../../video/S5.mp4",
+            s6: "../../video/S6.mp4",
+            s7: "../../video/S7.mp4",
+            s8: "../../video/S8.mp4",
+            end_a: "../../video/END_A.mp4",
+            end_b: "../../video/END_B.mp4",
+            end_c: "../../video/END_C.mp4",
+            end_d: "../../video/END_D.mp4"
+        }
+    };
+
+    const scenes = {
+        "intro": {
+            speaker: "내면의 독백", bg: ASSETS.bg.s1, walk: true, sound: "drone",
+            titleText: "도입부", timeLeft: "12:00:00",
+            text: "나는 흔히 말하는 노력파다. 아무리 밤을 새워 두꺼운 전공책을 파고들어도 성적은 늘 제자리걸음인 학생.<br><br>반면 나와 같은 수업을 듣는 그 녀석, 토끼는 다르다. 맨날 동기들이랑 번화가에서 술을 마시고 강의 시간에 숏폼이나 보면서도 늘 과탑을 차지하는 천재. 불공평한 세상이다.<br><br>내일은 전공 필수 기말고사. 또 그 녀석의 여유로운 웃음 앞에 짓밟힐 수는 없다. 시계 초침 소리가 고막을 찌르고, 책상에 쌓인 두꺼운 전공 서적들은 묘비처럼 날 짓누른다.<br><br>맨정신으론 버틸 수 없는 도서관에서의 밤. 피 말리는 운명의 수레바퀴가 돌기 시작했다.",
+            choices: [{ text: "[ 고통스러운 벼락치기를 시작한다 ]", action: () => enterScene("S1") }]
+        },
+        "S1": {
+            title: "S1", titleText: "벼락치기 돌입", speaker: "내면의 목소리", bg: ASSETS.bg.s1, walk: false,
+            timeLeft: "12:00:00",
+            text: "시험까지 남은 시간 12시간. 열람실 지정석에 앉아 첫 페이지를 펴자마자 빼곡한 활자들이 일그러지며 뇌를 옥죈다. 머리가 깨질 듯 아프다.<br><br>그 녀석, 토끼는 지금쯤 술집에서 신나게 잔을 부딪치고 있겠지. 녀석의 얄미운 웃음소리가 환청처럼 들려오자 억울함과 패배감이 목끝까지 차오른다.<br><br>조용한 도서관 열람실, 숨막히는 적막만이 흐른다. 당장 정신을 갉아먹더라도 허벅지를 찔러가며 억지로 뇌를 깨울 것인가, 아니면 내일의 맑은 정신을 핑계로 아주 조금이라도 책상에 엎드려 몸을 뉘일 것인가.",
+            choices: [
+                { text: "[A] 스마트폰을 끄고 허벅지를 찌른다 (체력 -15, 집중 지수 +1)", action: () => { updateState(-15,0,0,1); enterScene("S2"); } },
+                { text: "[B] 책상에 엎드려 15분만 잔다 (체력 +10, 집중 지수 0)", action: () => { updateState(10,0,0,0); enterScene("S2"); } }
+            ]
+        },
+        "S2": {
+            title: "S2", titleText: "체력 안배", speaker: "시스템", bg: ASSETS.bg.s2, walk: true,
+            timeLeft: "08:00:00",
+            text: "새벽 2시. 첫 번째 고비가 찾아왔다. 뻑뻑한 눈꺼풀 위로 납덩이가 올려진 것 같다. 굽은 등과 허리는 비명을 지르고, 집중력은 이미 한계를 넘어섰다.<br><br>낮에 마신 커피의 카페인도 서서히 바닥을 드러내고 있다. 잠시 눈을 붙이고 신나게 놀다 온 토끼는 내일 아침 상쾌하게 일어나 책을 펴겠지.<br><br>나는 이대로 멈추지 않고 고통 속에서 철야를 강행할 것인가, 아니면 '딱 15분만'이라며 뇌가 간절히 원하는 달콤한 숏폼 도파민을 허락할 일인가.",
+            choices: [
+                { text: "[A] 이빨을 꽉 깨물고 철야를 강행한다 (체력 -25, 집중 지수 +1)", action: () => { updateState(-25,0,0,1); enterScene("S3"); } },
+                { text: "[B] 숏폼 영상을 보며 뇌를 속인다 (체력 +15, 타락 지수 +30)", action: () => { updateState(15,0,30,0); enterScene("S3"); } }
+            ]
+        },
+        "S3": {
+            title: "S3", titleText: "알고리즘의 늪", speaker: "여우", bg: ASSETS.bg.s3, walk: false, sound: "glitch",
+            timeLeft: "06:30:00",
+            text: "시야가 일그러진다. 스마트폰의 차가운 액정 속에서 기괴하게 빛나는 네온 홀로그램이 스르륵 기어나온다. 늘 유행을 쫓는 동기, 여우다. 녀석이 띄운 화면 속엔 토끼와 동기 녀석들이 술자리 라이브 방송을 켜고 나를 조롱하듯 웃고 있다.<br><br><span class='text-purple-400 font-bold'>[여우]</span> '야, {playerName}. 너 얼굴 창백한 것 봐. 어차피 지금 열람실에 박혀서 본다고 머리에 들어오지도 않잖아? 여기 단톡방 라이브로 넘어와. 토끼도 있는데, 우리 같이 놀자.'<br><br>손가락이 덜덜 떨린다. 이 조롱 섞인 유혹에 넘어가 밤샘 랜선 합석에 동참할 것인가, 아니면 식은땀을 흘리며 단호하게 액정을 덮어버릴 것인가.",
+            choices: [
+                { text: "[A] 미소 지으며 밤샘 합석을 수락한다 (체력 +20, 타락 지수 +40)", action: () => { updateState(20,0,40,0); enterScene("S4"); } },
+                { text: "[B] 식은땀을 흘리며 액정을 덮는다 (체력 -10, 예상 학점 +10)", action: () => { updateState(-10,10,0,0); enterScene("S4"); } }
+            ]
+        },
+        "S4": {
+            title: "S4", titleText: "기습 퀴즈", speaker: "사자 교수", bg: ASSETS.bg.s4, walk: false, sound: "drone",
+            timeLeft: "04:00:00",
+            text: "쾅!! 쥐죽은 듯 적막하던 도서관 열람실 문이 부서질 듯 열리며 주변이 새하얀 교실로 기괴하게 변한다. 환각인가? 칠판 앞, 피 묻은 거대한 OMR 카드를 쥔 정장 차림의 사자 교수가 널 내려다보며 으르렁거린다.<br><br><span class='text-red-500 font-bold'>[사자 교수]</span> '네 놈의 미련한 노력이 과연 가치가 있었을까? 천재를 이기겠다고 발버둥 친 결과를 지금 당장 증명해라! 피할 곳은 없다!'<br><br>심장이 멎을 듯한 압박감. 두려움을 극복하고 정면으로 부딪쳐 피를 토할 것인가, 공포에 질려 도망칠 것인가.",
+            choices: [
+                { text: "[A] 펜을 쥐고 피를 토하며 정공법으로 응시한다 (체력 -30, 예상 학점 +20)", action: () => { updateState(-30,20,0,0); evalS4(); } },
+                { text: "[B] 공포에 질려 백지를 내고 도망친다 (체력 -5, 타락 지수 +20)", action: () => { updateState(-5,0,20,0); evalS4(); } }
+            ]
+        },
+        "S5": {
+            title: "S5", titleText: "밤샘의 구원자", speaker: "부엉이", bg: ASSETS.bg.s5, walk: false, sound: "glitch",
+            timeLeft: "03:00:00",
+            text: "시험까지 불과 3시간. 심장이 미친 듯이 뛰고 호흡이 가빠온다. 극한의 철야로 몸이 완전히 망가지고 있다는 게 뼛속까지 느껴진다.<br><br>어둠이 짙게 깔린 열람실 구석, 붉게 충혈된 두 눈이 번뜩인다. 검은 고농축 카페인 수액 호스를 칭칭 감은 동기, 부엉이가 쉰 목소리로 속삭인다.<br><br><span class='text-gray-400 font-bold'>[부엉이]</span> '너... 피가 다 말랐구나. 당장이라도 쓰러질 것 같아. 여기서 이 수혈을 받으면 아침까진 버티겠지만, 네 수명과 이성은 심각하게 깎여나갈 거다. 한 모금 할 텐가?'<br><br>선택의 여지가 없다. 이걸 안 마시면 당장이라도 심장이 멎고 책상에 쓰러질 판이다. 0에 수렴해가는 내 남은 체력으로는 도저히 버틸 수가 없다. 이 위험한 제안을 어떻게 할 것인가.",
+            choices: [
+                { text: "[A] 떨리는 손으로 카페인 수혈을 받는다 (체력 +40, 타락 지수 +20)", action: () => { updateState(40,0,20,0); enterScene("S8"); } },
+                { text: "[B] 기분 나쁜 제안을 거절하고 뒷걸음질 친다 (체력 -20)", action: () => { updateState(-20,0,0,0); enterScene("S8"); } }
+            ]
+        },
+        "S6": {
+            title: "S6", titleText: "전설의 노트", speaker: "곰 선배", bg: ASSETS.bg.s6, walk: true, sound: "drone",
+            timeLeft: "02:00:00",
+            text: "시야가 흔들리는 와중, 낡은 과잠을 입은 거대한 곰 선배의 그림자가 쿵, 쿵, 다가온다. 피눈물을 흘리며 묵묵히 버텨온 나의 집념이 환영을 만들어낸 것일까.<br><br>그가 품에 안은 두껍고 낡은 전공 족보 노트에서 따스한 황금빛이 새어 나온다.<br><br><span class='text-yellow-500 font-bold'>[곰 선배]</span> '미련할 정도로 유혹을 잘 견뎠군. 내 피와 땀이 담긴 이 귀한 노트를 잠시 빌려주지.'<br><br>하지만 이 엄청난 지식을 해독하려면, 아직 내 몸에 최소한의 체력이 남아있어야만 한다.",
+            choices: [
+                { text: "[A] 황금빛 노트를 받아들어 해독을 시도한다 (체력>20 시 성공)", action: () => { 
+                    if(state.hp > 20) { updateState(0, 40, 0, 0); }
+                    enterScene("S8"); 
+                }},
+                { text: "[B] 정중히 고개를 저어 거절한다 (변동 없음)", action: () => { enterScene("S8"); } }
+            ]
+        },
+        "S7": {
+            title: "S7", titleText: "악마의 유혹", speaker: "토끼", bg: ASSETS.bg.s7, walk: false, sound: "glitch",
+            timeLeft: "01:00:00",
+            text: "깜빡이는 도서관 비상구 조명 아래, 스르륵 다가오는 인영이 있다. 진짜인지 환각인지 모를 그 녀석, 토끼다. 귀엽장한 얼굴이지만 입꼬리가 귀밑까지 기괴하게 찢어져 있다.<br><br>녀석의 손엔 붉은빛이 새어 나오는 USB가 들려 있다.<br><br><span class='text-red-400 font-bold'>[토끼]</span> '{playerName}, 넌 왜 그렇게 미련하게 사냐? 뭘 그렇게 힘들게 해? 어차피 이번에도 나한테 질 텐데. 여기 교수님 연구실에서 빼돌린 확실한 정답이 있어. 그냥 이거 꽂고 편하게 자.'<br><br>악마의 속삭임이다. 저걸 수락하는 순간 내 모든 노력은 완전히 부정당하고, 영원히 녀석의 밑바닥에 남게 된다.",
+            choices: [
+                { text: "[A] 홀린 듯이 불법 족보를 수락한다 (예상 학점 90, 타락 지수 100 고정)", action: () => { state.gpa = 90; state.corr = 100; updateHUD(); enterScene("S8"); } },
+                { text: "[B] 입술을 깨물며 USB를 쳐내 파기한다 (체력 -15, 예상 학점 +15)", action: () => { updateState(-15,15,0,0); enterScene("S8"); } }
+            ]
+        },
+        "S8": {
+            title: "S8", titleText: "최종 마킹", speaker: "시스템", bg: ASSETS.bg.s8, walk: false,
+            timeLeft: "00:05:00",
+            text: "도서관의 밤이 끝나고 드디어 결전의 아침이 밝았다. 무거운 몸을 이끌고 서늘한 공기가 감도는 시험장에 도착했다.<br><br>시험장 책상 앞, 아침 햇살이 창을 찌르지만 온몸이 비명을 지른다. OMR 카드 위로 식은땀이 뚝뚝 떨어진다. 앞자리의 토끼 녀석은 이미 다 풀었는지 엎드려 자고 있다.<br><br>종료 5분 전... 눈앞이 까맣게 흐려지고 손가락에 경련이 일어난다. 마지막 남은 생명력을 쥐어짤 것인가, 아니면 여기서 운명에 순응할 것인가.",
+            choices: [
+                { text: "[A] 손등을 찍어가며 끝까지 재검토한다 (체력 -15, 예상 학점 +15)", action: () => { updateState(-15,15,0,0); evalEnding(); } },
+                { text: "[B] 연필을 던지고 엎드려 조기 제출한다 (변동 없음)", action: () => { evalEnding(); } }
+            ]
+        }
+    };
+
+    // --- 글로벌 비디오 컨트롤 함수 (속도 조절 지원) ---
+    function playVideo(url, walk = false, speed = 0.75) {
+        const vid = document.getElementById('global-video');
+        if (vid.getAttribute('data-src') !== url) {
+            vid.src = url;
+            vid.setAttribute('data-src', url);
+            // 재생 시 전달받은 파라미터로 속도 조절 (기본 0.75배속, 엔딩은 더 느리게)
+            vid.onloadeddata = () => { vid.playbackRate = speed; };
+            vid.play().catch(e => console.log(e));
+        } else {
+            vid.playbackRate = speed;
+        }
+        
+        if (walk) {
+            vid.classList.add('walking-anim');
+        } else {
+            vid.classList.remove('walking-anim');
+        }
+    }
+
+    window.onload = () => {
+        playVideo(ASSETS.bg.cover, false, 0.75);
+    };
+
+    function openModal(id) { document.getElementById(id).style.display = 'flex'; }
+    function closeModal(id) { document.getElementById(id).style.display = 'none'; }
+
+    function showScreen(id) {
+        document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+        document.getElementById(id).classList.add('active');
+    }
+
+    function goHome() {
+        showScreen('screen-title');
+        playVideo(ASSETS.bg.cover, false, 0.75);
+        document.getElementById('btn-continue').classList.remove('hidden');
+        document.getElementById('record-savepoint').innerText = state.savepointName;
+        document.getElementById('record-title').innerText = getTitleEstimate();
+        document.getElementById('record-timeleft').innerText = state.timeLeft || "12:00:00";
+    }
+
+    function continueGame() { 
+        showScreen('screen-game'); 
+        playVideo(scenes[state.sceneId].bg, scenes[state.sceneId].walk, 0.75);
+    }
+
+    function getTitleEstimate() {
+        if(state.corr >= 70) return "타락한 자";
+        if(state.hp <= 40) return "빈사 상태의 수험생";
+        if(state.focus >= 1) return "고행을 걷는 자";
+        return "평범한 수험생";
+    }
+
+    function previewProfile(event) {
+        const file = event.target.files[0];
+        if (file) {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const imgStr = e.target.result;
+                document.getElementById('preview-img').src = imgStr;
+                document.getElementById('preview-img').style.display = 'block';
+                document.getElementById('upload-text').style.display = 'none';
+                state.profileImg = imgStr;
+            }
+            reader.readAsDataURL(file);
+        }
+    }
+
+    function goToNameInput() {
+        const pov = document.getElementById('pov-transition');
+        
+        pov.style.backgroundColor = 'transparent';
+        pov.style.opacity = '1';
+        document.getElementById('pov-text').innerText = "[ 수험자 정보 초기화 중... ]";
+        
+        // TTS Play
+        playTTS('../../mp3/tts/sys_init.mp3');
+        
+        setTimeout(() => {
+            playVideo(ASSETS.bg.s1, false, 0.75);
+            showScreen('screen-name');
+            document.getElementById('name-input-box').focus();
+        }, 800);
+
+        setTimeout(() => {
+            pov.style.opacity = '0';
+        }, 2500);
+    }
+
+    function submitName() {
+        let nick = document.getElementById('name-input-box').value.trim();
+        if(nick === "") nick = "무명(無名)";
+        state.name = nick;
+        document.getElementById('hud-name').innerText = nick;
+        
+        if(state.profileImg) {
+            document.getElementById('hud-profile-img').src = state.profileImg;
+        }
+
+        const pov = document.getElementById('pov-transition');
+        pov.style.backgroundColor = 'transparent';
+        pov.style.opacity = '1';
+        document.getElementById('pov-text').innerText = "[ 숨막히는 운명의 도서관으로 진입합니다 ]";
+        
+        // TTS Play
+        playTTS('../../mp3/tts/sys_enter_lib.mp3');
+
+        setTimeout(() => {
+            showScreen('screen-game');
+        }, 800);
+
+        enterScene("intro", true); 
+    }
+
+    function updateState(hpDelta, gpaDelta, corrDelta, focusDelta) {
+        state.hp += hpDelta; if (state.hp > 100) state.hp = 100;
+        state.gpa += gpaDelta;
+        state.corr += corrDelta;
+        state.focus += focusDelta;
+
+        if (hpDelta < 0) {
+            const flash = document.getElementById('damage-flash');
+            flash.style.opacity = '1';
+            document.body.classList.add('shake');
+            setTimeout(() => { flash.style.opacity = '0'; document.body.classList.remove('shake'); }, 300);
+        }
+
+        updateHUD();
+    }
+
+    function updateHUD() {
+        document.getElementById('val-hp').innerText = state.hp;
+        document.getElementById('val-gpa').innerText = state.gpa;
+        document.getElementById('val-corr').innerText = state.corr;
+        document.getElementById('val-focus').innerText = state.focus;
+
+        document.getElementById('bar-hp').style.width = Math.min(Math.max(state.hp, 0), 100) + '%';
+        document.getElementById('bar-gpa').style.width = Math.min(state.gpa, 100) + '%';
+        document.getElementById('bar-corr').style.width = Math.min(state.corr, 100) + '%';
+        document.getElementById('bar-focus').style.width = Math.min((state.focus/3)*100, 100) + '%'; 
+        
+        document.getElementById('hud-title-display').innerText = getTitleEstimate();
+
+        const vignette = document.getElementById('vignette');
+        if (state.hp <= 40 || state.corr >= 70) { 
+            vignette.classList.remove('hidden'); vignette.classList.add('danger-vignette'); 
+        } else { 
+            vignette.classList.add('hidden'); vignette.classList.remove('danger-vignette'); 
+        }
+    }
+
+    function enterScene(sceneId, isCustomIntro = false) {
+        state.sceneId = sceneId;
+        const pov = document.getElementById('pov-transition');
+        const text = document.getElementById('pov-text');
+        const walkText = document.getElementById('pov-walk-text');
+        const data = scenes[sceneId];
+        
+        if (data.titleText) {
+            state.savepointName = data.title ? `${data.title} ${data.titleText}` : data.titleText;
+        }
+        document.getElementById('hud-current-scene').innerText = state.savepointName;
+        
+        if (data.timeLeft) {
+            state.timeLeft = data.timeLeft;
+            const timeEl = document.getElementById('hud-time-left');
+            if (timeEl) {
+                timeEl.innerText = data.timeLeft;
+                if(sceneId === "S7" || sceneId === "S8") {
+                    timeEl.classList.add('glitch-heavy');
+                } else {
+                    timeEl.classList.remove('glitch-heavy');
+                }
+            }
+        }
+
+        pov.style.backgroundColor = 'transparent';
+        pov.style.opacity = '1';
+
+        if (isCustomIntro) {
+            text.innerHTML = "[ 숨막히는 운명의 도서관으로 진입합니다 ]";
+        } else if (sceneId === "S8") {
+            text.innerHTML = "[ 서늘한 시험장으로 이동합니다... ]";
+            playTTS('../../mp3/tts/sys_enter_exam.mp3');
+        } else {
+            text.innerHTML = data.titleText ? `[ ${data.titleText} 구역으로 진입합니다 ]` : "[ 기억 동기화 중... ]";
+        }
+        
+        setTimeout(() => {
+            document.getElementById('dialogue-text').innerHTML = "";
+            document.getElementById('choices-right-panel').innerHTML = "";
+            
+            playVideo(data.bg, data.walk, 0.75);
+
+            if(data.walk) {
+                walkText.classList.remove('hidden');
+            } else {
+                walkText.classList.add('hidden');
+            }
+        }, 800);
+
+        setTimeout(() => {
+            document.getElementById('speaker-name').innerText = data.speaker;
+            let replacedText = data.text.replace(/{playerName}/g, state.name);
+            typeText(replacedText, data.choices);
+            pov.style.opacity = '0';
+
+            // --- 씬별 TTS 대사 재생 매핑 ---
+            let ttsFiles = [];
+            if (sceneId === 'intro') ttsFiles = ['../../mp3/tts/intro.mp3'];
+            else if (sceneId === 'S1') ttsFiles = ['../../mp3/tts/s1_narr.mp3'];
+            else if (sceneId === 'S2') ttsFiles = ['../../mp3/tts/s2_narr.mp3'];
+            else if (sceneId === 'S3') ttsFiles = ['../../mp3/tts/s3_narr.mp3', '../../mp3/tts/s3_fox.mp3'];
+            else if (sceneId === 'S4') ttsFiles = ['../../mp3/tts/s4_narr.mp3', '../../mp3/tts/s4_lion.mp3'];
+            else if (sceneId === 'S5') ttsFiles = ['../../mp3/tts/s5_narr.mp3', '../../mp3/tts/s5_owl.mp3'];
+            else if (sceneId === 'S6') ttsFiles = ['../../mp3/tts/s6_narr.mp3', '../../mp3/tts/s6_bear.mp3'];
+            else if (sceneId === 'S7') ttsFiles = ['../../mp3/tts/s7_narr.mp3', '../../mp3/tts/s7_rabbit.mp3'];
+            else if (sceneId === 'S8') ttsFiles = ['../../mp3/tts/s8_narr.mp3'];
+
+            playTTS(ttsFiles);
+
+        }, 2500); 
+    }
+
+    function typeText(htmlString, choices) {
+        const div = document.getElementById('dialogue-text');
+        div.innerHTML = "";
+        let isTag = false, currentHTML = "", i = 0;
+        clearInterval(typeWriterInterval);
+
+        typeWriterInterval = setInterval(() => {
+            if(i >= htmlString.length) {
+                clearInterval(typeWriterInterval);
+                renderChoices(choices); 
+                const container = document.getElementById('dialogue-text-container');
+                container.scrollTop = container.scrollHeight;
+                return;
+            }
+            let char = htmlString.charAt(i);
+            currentHTML += char; div.innerHTML = currentHTML;
+            if(char === '<') isTag = true; if(char === '>') isTag = false;
+            
+            if(isTag) {
+                while(i < htmlString.length && htmlString.charAt(i) !== '>') {
+                    i++; currentHTML += htmlString.charAt(i);
+                }
+                div.innerHTML = currentHTML; isTag = false;
+            }
+            i++;
+            const container = document.getElementById('dialogue-text-container');
+            container.scrollTop = container.scrollHeight;
+        }, 50); 
+    }
+
+    function renderChoices(choices) {
+        const container = document.getElementById('choices-right-panel');
+        container.innerHTML = '';
+        choices.forEach((c, index) => {
+            const btn = document.createElement('button');
+            btn.className = 'choice-btn'; 
+            btn.innerText = c.text; 
+            btn.onclick = c.action;
+            btn.style.animationDelay = `${index * 0.2}s`;
+            container.appendChild(btn);
+        });
+    }
+
+    function evalS4() {
+        if (state.hp <= 40) enterScene("S5");
+        else if (state.corr <= 30 && state.focus >= 1) enterScene("S6");
+        else enterScene("S7");
+    }
+
+    function evalEnding() {
+        const pov = document.getElementById('pov-transition');
+        const walkText = document.getElementById('pov-walk-text');
+        const globalVid = document.getElementById('global-video');
+        
+        walkText.classList.add('hidden');
+        document.getElementById('pov-text').innerHTML = "<span class='text-red-600 glitch-heavy'>교수님께서 당신의 성적표를 들고 오고 있습니다...</span>";
+        
+        // TTS Play
+        playTTS('../../mp3/tts/sys_prof_coming.mp3');
+
+        // 스포 방지: 완전히 검은 화면 연출
+        pov.style.backgroundColor = '#000000';
+        pov.style.opacity = '1';
+
+        setTimeout(() => {
+            globalVid.style.opacity = '0';
+        }, 800);
+
+        const timeEl = document.getElementById('hud-time-left');
+        if(timeEl) {
+            timeEl.innerText = "00:00:00";
+            timeEl.classList.remove('glitch-heavy');
+        }
+
+        let endBg = "";
+        let resultHtml = "";
+        let categoryText = "";
+        let categoryClass = "";
+        let descHtml = "";
+        let endAudio = "";
+
+        if (state.hp <= 0) {
+            endBg = ASSETS.bg.end_a;
+            endAudio = "../../mp3/tts/end_a.mp3";
+            resultHtml = "<span class='text-red-700 glitch-heavy'>응급실 링거</span>";
+            categoryText = "GAME OVER";
+            categoryClass = "text-2xl text-gray-600 font-bold mb-12 tracking-[0.3em]";
+            descHtml = `<span class='text-red-500 font-black text-4xl mb-4 block'>${state.name} 학생...</span>눈앞이 하얗게 점멸했네. 깨어난 곳은 차가운 병실.<br>무리한 밤샘으로 체력이 고갈되어 이번 학기는 강제로 로그아웃 처리되었네.`;
+        } else if (state.corr >= 100) {
+            endBg = ASSETS.bg.end_b;
+            endAudio = "../../mp3/tts/end_b.mp3";
+            resultHtml = "<span class='text-purple-700 glitch-heavy'>F 재수강</span>";
+            categoryText = "BAD ENDING";
+            categoryClass = "text-2xl text-gray-600 font-bold mb-12 tracking-[0.3em]";
+            descHtml = `<span class='text-purple-500 font-black text-4xl mb-4 block'>자네, ${state.name} 학생. 내 차가운 눈초리가 안 보이나?</span>성적표에 붉은 F를 찍어주지.<br>타락 지수 임계점을 돌파한 딴짓과 부정행위의 대가라네. 내년에 다시 보지.`;
+        } else if (state.gpa >= 80) {
+            endBg = ASSETS.bg.end_c;
+            endAudio = "../../mp3/tts/end_c.mp3";
+            resultHtml = "<span class='text-yellow-500 glitch-heavy'>A+ 생존자</span>";
+            categoryText = "TRUE ENDING";
+            categoryClass = "text-2xl text-yellow-700 font-bold mb-12 tracking-[0.3em]";
+            descHtml = `<span class='text-yellow-400 font-black text-4xl mb-4 block'>훌륭해, ${state.name} 학생!</span>찬란한 금빛 성적표일세.<br>쏟아지는 유혹과 고난의 밤을 이겨내고 전설을 써내려갔군. 거북이의 위대한 승리라네.`;
+        } else {
+            endBg = ASSETS.bg.end_d;
+            endAudio = "../../mp3/tts/end_d.mp3";
+            resultHtml = "<span class='text-blue-500 glitch-heavy'>평범한 수험생</span>";
+            categoryText = "NORMAL ENDING";
+            categoryClass = "text-2xl text-blue-800 font-bold mb-12 tracking-[0.3em]";
+            descHtml = `<span class='text-blue-400 font-black text-4xl mb-4 block'>${state.name} 학생, 수고했네.</span>노을 진 캠퍼스를 터덜터덜 걸어 나가게.<br>적당히 타협하며 밤을 새운 대가로 무난한 B학점을 주겠네. 이것이 보통의 삶이지.`;
+        }
+
+        // 단계 1: 3.5초간 긴장감 스크린 대기
+        setTimeout(() => {
+            showScreen('screen-ending');
+            document.getElementById('vignette').classList.add('hidden');
+            
+            document.getElementById('end-result').innerHTML = resultHtml; 
+            const category = document.getElementById('end-category');
+            category.innerText = categoryText;
+            category.className = categoryClass;
+            document.getElementById('end-desc').innerHTML = descHtml;
+            
+            // 텍스트를 감추고 엔딩 비디오 세팅
+            const overlay = document.getElementById('ending-text-overlay');
+            overlay.style.opacity = '0'; 
+            
+            playVideo(endBg, false, 0.45);
+            document.getElementById('screen-ending').style.backgroundImage = `linear-gradient(rgba(10,0,0,0.15), rgba(0,0,0,0.6))`;
+            
+            globalVid.style.opacity = '1';
+            pov.style.opacity = '0'; 
+
+            // 엔딩 TTS 재생
+            playTTS(endAudio);
+
+            // 단계 2: 4.5초간 온전히 컷씬 영상만 아주 천천히 감상하게 한 뒤 성적표(결과) 페이드인
+            setTimeout(() => {
+                // 결과(성적표 UI) 페이드인
+                overlay.style.opacity = '1';
+            }, 4500);
+
+        }, 3500); 
+    }
+</script>
+</body>
+</html>
