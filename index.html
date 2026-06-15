@@ -503,19 +503,19 @@
     // 영상 경로 매핑 
     const ASSETS = {
         bg: {
-            cover: "../../video/cover.mp4",
-            s1: "../../video/S1.mp4",
-            s2: "../../video/S2.mp4",
-            s3: "../../video/S3.mp4",
-            s4: "../../video/S4.mp4",
-            s5: "../../video/S5.mp4",
-            s6: "../../video/S6.mp4",
-            s7: "../../video/S7.mp4",
-            s8: "../../video/S8.mp4",
-            end_a: "../../video/END_A.mp4",
-            end_b: "../../video/END_B.mp4",
-            end_c: "../../video/END_C.mp4",
-            end_d: "../../video/END_D.mp4"
+            cover: "video/cover.mp4",
+            s1: "video/S1.mp4",
+            s2: "video/S2.mp4",
+            s3: "video/S3.mp4",
+            s4: "video/S4.mp4",
+            s5: "video/S5.mp4",
+            s6: "video/S6.mp4",
+            s7: "video/S7.mp4",
+            s8: "video/S8.mp4",
+            end_a: "video/END_A.mp4",
+            end_b: "video/END_B.mp4",
+            end_c: "video/END_C.mp4",
+            end_d: "video/END_D.mp4"
         }
     };
 
@@ -812,15 +812,15 @@
 
             // --- 씬별 TTS 대사 재생 매핑 ---
             let ttsFiles = [];
-            if (sceneId === 'intro') ttsFiles = ['../../mp3/tts/intro.mp3'];
-            else if (sceneId === 'S1') ttsFiles = ['../../mp3/tts/s1_narr.mp3'];
-            else if (sceneId === 'S2') ttsFiles = ['../../mp3/tts/s2_narr.mp3'];
-            else if (sceneId === 'S3') ttsFiles = ['../../mp3/tts/s3_narr.mp3', '../../mp3/tts/s3_fox.mp3'];
-            else if (sceneId === 'S4') ttsFiles = ['../../mp3/tts/s4_narr.mp3', '../../mp3/tts/s4_lion.mp3'];
-            else if (sceneId === 'S5') ttsFiles = ['../../mp3/tts/s5_narr.mp3', '../../mp3/tts/s5_owl.mp3'];
-            else if (sceneId === 'S6') ttsFiles = ['../../mp3/tts/s6_narr.mp3', '../../mp3/tts/s6_bear.mp3'];
-            else if (sceneId === 'S7') ttsFiles = ['../../mp3/tts/s7_narr.mp3', '../../mp3/tts/s7_rabbit.mp3'];
-            else if (sceneId === 'S8') ttsFiles = ['../../mp3/tts/s8_narr.mp3'];
+            if (sceneId === 'intro') ttsFiles = ['mp3/tts/intro.mp3'];
+            else if (sceneId === 'S1') ttsFiles = ['mp3/tts/s1_narr.mp3'];
+            else if (sceneId === 'S2') ttsFiles = ['mp3/tts/s2_narr.mp3'];
+            else if (sceneId === 'S3') ttsFiles = ['mp3/tts/s3_narr.mp3', 'mp3/tts/s3_fox.mp3'];
+            else if (sceneId === 'S4') ttsFiles = ['mp3/tts/s4_narr.mp3', 'mp3/tts/s4_lion.mp3'];
+            else if (sceneId === 'S5') ttsFiles = ['mp3/tts/s5_narr.mp3', 'mp3/tts/s5_owl.mp3'];
+            else if (sceneId === 'S6') ttsFiles = ['mp3/tts/s6_narr.mp3', 'mp3/tts/s6_bear.mp3'];
+            else if (sceneId === 'S7') ttsFiles = ['mp3/tts/s7_narr.mp3', 'mp3/tts/s7_rabbit.mp3'];
+            else if (sceneId === 'S8') ttsFiles = ['mp3/tts/s8_narr.mp3'];
 
             playTTS(ttsFiles);
 
